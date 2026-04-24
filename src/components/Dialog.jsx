@@ -7,8 +7,8 @@ function Dialog({ isOpen, onClose, broker }) {
   const [money, setMoney] = useState(0);
 
   return (
-    <div className="dialog-overlay" role="presentation">
-      <dialog open className="wallet">
+    <div className="dialog-overlay" role="presentation" onClick={onClose}>
+      <dialog open className="wallet" onClick={(e) => e.stopPropagation()}>
         <div className="header">Add Money</div>
         <div className="title">
           <input
@@ -23,7 +23,10 @@ function Dialog({ isOpen, onClose, broker }) {
           <button
             type="button"
             className="add-wallet"
-            onClick={() => broker({ type: Actions.ADD_BALANCE, payload: money })}
+            onClick={() => {
+              broker({ type: Actions.ADD_BALANCE, payload: money });
+              onClose();
+            }}
           >
             Add
           </button>
@@ -37,3 +40,8 @@ function Dialog({ isOpen, onClose, broker }) {
 }
 
 export default Dialog;
+
+// The true/false you mentioned is the caputure paramete in the addEventListner , When true
+// the event goes top  ==> bottom first (called capturing phase) In react you rarely need to
+// worry about this React handles events in the bubbling phase by default
+  

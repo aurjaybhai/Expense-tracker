@@ -32,6 +32,12 @@ function reducer(state, { type, payload }) {
       };
 
     case Actions.SUBMIT:
+      if (state.amount == 0) {
+        alert("Pls enter any amount");
+        return {
+          ...state,
+        };
+      }
       if (!state.expense_name.length > 0) {
         alert("Please Enter something"); // alert the user
         return state;
@@ -39,11 +45,8 @@ function reducer(state, { type, payload }) {
 
       return {
         ...state,
+        balance: state.balance - state.amount,
         display: true,
-      };
-
-      return {
-        ...state,
       };
     case Actions.ADD_BALANCE:
       return {
