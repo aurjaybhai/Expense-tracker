@@ -1,4 +1,4 @@
-import React, { useReducer, useState } from "react";
+import React, { useEffect, useReducer, useState, useRef } from "react";
 import Buttons from "./components/Buttons";
 import { Wallet, Sun, Moon } from "lucide-react";
 import Dialog from "./components/Dialog";
@@ -8,18 +8,29 @@ export const Actions = {
   AMOUNT: "add_amount",
   SUBMIT: "submit",
   ADD_BALANCE: "add-balance",
+  CHECKBOX: "checkbox",
+  LOAD_TRANSACTIONS: "load",
 };
 
 const initialData = {
-  expense_name: "test",
+  expense_name: "",
   amount: "",
   display: false,
   balance: 0,
   expense: 0,
+  income: 0,
+  switch: false,
+  transaction: [],
 };
 
 function reducer(state, { type, payload }) {
-  
+  const entry = {
+    id: crypto.randomUUID(),
+    name: state.expense_name,
+    amount: state.amount,
+    type: state.switch ? "income" : "expense",
+  };
+
   switch (type) {
     case Actions.EXPENSE_NAME:
       return {
@@ -44,12 +55,31 @@ function reducer(state, { type, payload }) {
         alert("Please Enter something"); // alert the user
         return state;
       }
+
+      if (!state.switch) {
+        return {
+          ...state,
+          expense: state.expense + state.amount,
+          balance: state.balance - state.amount,
+          display: true,
+          transaction: [entry, ...state.transaction],
+        };
+      } else {
+        return {
+          ...state,
+          income: state.income + state.amount,
+          balance: state.balance + state.amount,
+          display: true,
+          transaction: [entry, ...state.transaction],
+        };
+      }
+
+    case Actions.CHECKBOX:
       return {
         ...state,
-        expense: state.expense + state.amount,
-        balance: state.balance - state.amount,
-        display: true,
+        switch: payload,
       };
+
     case Actions.ADD_BALANCE:
       const amount = parseFloat(payload);
 
@@ -58,6 +88,16 @@ function reducer(state, { type, payload }) {
         balance: state.balance + amount,
       };
       0;
+
+    case Actions.LOAD_TRANSACTIONS:
+      if (payload == null) {
+        return state;
+      }
+
+      return {
+        ...state,
+        transaction: payload,
+      };
   }
 }
 
@@ -70,17 +110,31 @@ function reducer(state, { type, payload }) {
 function App() {
   const [isWOpen, setIsWOpen] = useState(false);
   const [state, dispatch] = useReducer(reducer, initialData);
+  const [isDark, setIsDark] = useState(true);
+  const isFirstRender = useRef(true);
+
+  useEffect(() => {
+    const records = JSON.parse(localStorage.getItem("record")); // string ==> json
+    dispatch({ type: Actions.LOAD_TRANSACTIONS, payload: records });
+  }, []);
+
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+
+    localStorage.setItem("record", JSON.stringify(state.transaction)); // json ==> string
+  }, [state.transaction]);
 
   return (
     <>
-      <div className="app-shell">
+      <div className={`app-shell ${isDark ? "" : "light-mode"}`}>
         <div className="container">
           <div className="header-row">
             <h1 className="app-title">Expense Tracker</h1>
             <div className="navbar">
-              <span className="nav-icon" aria-hidden="true">
-                <Sun size={18} />
-              </span>
+              <span className="nav-icon" aria-hidden="true"></span>
               <button
                 type="button"
                 className="icon-button"
@@ -89,9 +143,12 @@ function App() {
               >
                 <Wallet size={20} />
               </button>
-              <span className="nav-icon" aria-hidden="true">
-                <Moon size={18} />
-              </span>
+              {isDark ? (
+                <Moon size={25} onClick={() => setIsDark(false)} />
+              ) : (
+                <Sun size={25} onClick={() => setIsDark(true)} />
+              )}
+              <span className="nav-icon" aria-hidden="true"></span>
             </div>
           </div>
 
@@ -102,23 +159,49 @@ function App() {
             </div>
             <div className="display-card income-balance">
               <span className="card-label">Income</span>
-              <p className="card-value">0</p>
+              <p className="card-value">{state.income}</p>
             </div>
             <div className="display-card expense-balance">
               <span className="card-label">Expense</span>
               <p className="card-value">{state.expense}</p>
             </div>
           </div>
-
           <div className="form-card">
             <div className="form">
+              <div className="toggle-row">
+                <span
+                  className={`toggle-label ${!state.switch ? "active" : ""}`}
+                >
+                  Expense
+                </span>
+                <div className="toggle">
+                  <input
+                    type="checkbox"
+                    id="switch"
+                    checked={state.switch}
+                    onChange={(e) =>
+                      dispatch({
+                        type: Actions.CHECKBOX,
+                        payload: e.target.checked,
+                      })
+                    }
+                  />
+                  <label htmlFor="switch" className="toggle-slider"></label>
+                </div>
+                <span
+                  className={`toggle-label ${state.switch ? "active" : ""}`}
+                >
+                  Income
+                </span>
+              </div>
+
               <label htmlFor="expenseName" className="field-label">
-                <span>Expense Name</span>
+                <span>Name</span>
                 <input
                   id="expenseName"
                   type="text"
                   value={state.expense_name}
-                  placeholder="What's the expense"
+                  placeholder="What did you spend on?"
                   onChange={(e) =>
                     dispatch({
                       type: Actions.EXPENSE_NAME,
@@ -133,9 +216,12 @@ function App() {
                 <input
                   id="amount"
                   type="number"
-                  placeholder="Enter an amount"
+                  placeholder="$ 0.00"
                   onChange={(e) =>
-                    dispatch({ type: Actions.AMOUNT, payload: e.target.value })
+                    dispatch({
+                      type: Actions.AMOUNT,
+                      payload: parseFloat(e.target.value),
+                    })
                   }
                 />
               </label>
@@ -143,18 +229,33 @@ function App() {
             </div>
           </div>
 
-          {state.display && (
-            <div className="entry-preview">
-              <p>
-                <span>Name:</span> {state.expense_name}
+          <div className="history">
+            <h3 className="history-title">Transaction History</h3>
+            {state.transaction.length > 0 ? (
+              <ul className="transaction-list">
+                {state.transaction.map((item) => (
+                  <li
+                    key={item.id}
+                    className={`history-entry ${item.type === "income" ? "entry-income" : "entry-expense"}`}
+                  >
+                    <div className="entry-left">
+                      <span className="entry-name">{item.name}</span>
+                      <span className="entry-type">{item.type}</span>
+                    </div>
+                    <span
+                      className={`entry-amount ${item.type === "income" ? "amount-positive" : "amount-negative"}`}
+                    >
+                      {item.type === "income" ? "+" : "−"}${item.amount}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="history-empty">
+                No transactions yet. Add one above!
               </p>
-              <p>
-                <span>Amount:</span> {state.amount}
-              </p>
-            </div>
-          )}
-
-          <div className="history">Transaction history</div>
+            )}
+          </div>
         </div>
       </div>
 
