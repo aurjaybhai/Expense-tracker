@@ -15,9 +15,11 @@ const initialData = {
   amount: "",
   display: false,
   balance: 0,
+  expense: 0,
 };
 
 function reducer(state, { type, payload }) {
+  
   switch (type) {
     case Actions.EXPENSE_NAME:
       return {
@@ -42,17 +44,20 @@ function reducer(state, { type, payload }) {
         alert("Please Enter something"); // alert the user
         return state;
       }
-
       return {
         ...state,
+        expense: state.expense + state.amount,
         balance: state.balance - state.amount,
         display: true,
       };
     case Actions.ADD_BALANCE:
+      const amount = parseFloat(payload);
+
       return {
         ...state,
-        balance: payload,
+        balance: state.balance + amount,
       };
+      0;
   }
 }
 
@@ -101,7 +106,7 @@ function App() {
             </div>
             <div className="display-card expense-balance">
               <span className="card-label">Expense</span>
-              <p className="card-value">0</p>
+              <p className="card-value">{state.expense}</p>
             </div>
           </div>
 
